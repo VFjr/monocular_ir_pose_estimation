@@ -24,4 +24,20 @@ class PoseEstimator{
         image_transport::Subscriber image_sub_;
         image_transport::Publisher image_pub_;
 
+        cv::SimpleBlobDetector::Params blob_detector_params;
+        cv::Ptr<cv::SimpleBlobDetector> blob_detector;
+
+        bool camera_info_received;
+        sensor_msgs::CameraInfo::ConstPtr camera_info_;
+        cv::Mat camera_intrinsics_matrix;
+        cv::Mat camera_distortion_coefficients_matrix;
+
+        cv::Mat undistorted, bw_image, binary_bw_image, inverted_binary_bw_image;
+
+        cv_bridge::CvImagePtr cv_ptr;
+        std_msgs::Header msg_header;
+        std::string frame_id;
+
+        std::vector<cv::KeyPoint> keypoints;
+
 };

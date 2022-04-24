@@ -40,4 +40,12 @@ class PoseEstimator{
 
         std::vector<cv::KeyPoint> keypoints;
 
+        std::vector<cv::Point3f> points_3d;
+        std::vector<cv::Point3f> axis_3d;
+
+        float reprojection_mse(std::vector<cv::Point3f> points_3d_defined, std::vector<cv::Point2f> points_2d_detected, cv::Mat rvec, cv::Mat tvec);
+        float reprojection_max_error(std::vector<cv::Point3f> points_3d_defined, std::vector<cv::Point2f> points_2d_detected, cv::Mat rvec, cv::Mat tvec);
+        void draw_axis(cv::Mat& img, cv::Mat rvec, cv::Mat tvec);
+
+    
 };

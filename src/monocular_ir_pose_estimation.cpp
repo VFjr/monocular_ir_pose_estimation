@@ -86,11 +86,21 @@ PoseEstimator::PoseEstimator(ros::NodeHandle *nh) : it_(*nh)
 
   // add the 3d Points
 
+  /*
   points_3d.push_back(cv::Point3f(0, 0, 0));
   points_3d.push_back(cv::Point3f(0, -0.072, 0));
   points_3d.push_back(cv::Point3f(0, -0.097, 0));
   points_3d.push_back(cv::Point3f(-0.099, 0, 0));
   points_3d.push_back(cv::Point3f(-0.099, -0.097, 0));
+  */
+
+
+  points_3d.push_back(cv::Point3f(0, 0, 0));
+  //points_3d.push_back(cv::Point3f(0.05, 0.05, -0.03));
+  points_3d.push_back(cv::Point3f(0.05, -0.05, -0.03));
+  points_3d.push_back(cv::Point3f(-0.05, 0.05, -0.03));
+  points_3d.push_back(cv::Point3f(-0.05, -0.05, -0.03));
+  points_3d.push_back(cv::Point3f(0.02, 0.067, -0.03));
 
   axis_3d.push_back(cv::Point3f(0, 0, 0));
   axis_3d.push_back(cv::Point3f(0.05, 0, 0));
@@ -117,7 +127,7 @@ void PoseEstimator::image_callback(const sensor_msgs::ImageConstPtr &msg)
   }
 
   cv::cvtColor(cv_ptr->image, bw_image, CV_BGR2GRAY);
-  cv::threshold(bw_image, binary_bw_image, 100, 255, cv::THRESH_BINARY);
+  cv::threshold(bw_image, binary_bw_image, 50, 255, cv::THRESH_BINARY);
   cv::bitwise_not(binary_bw_image, inverted_binary_bw_image);
 
   blob_detector->detect(inverted_binary_bw_image, keypoints);
@@ -131,6 +141,8 @@ void PoseEstimator::image_callback(const sensor_msgs::ImageConstPtr &msg)
   cv::Mat best_tvec(3, 1, cv::DataType<double>::type);
 
   std::vector<cv::Point2f> points_2d_unordered, points_2d_ordered, points_2d_ordered_best, temp_points_2d_ordered;
+
+  float temp_repr_error;
 
   if (keypoints.size() >= 5)
   {
@@ -152,19 +164,19 @@ void PoseEstimator::image_callback(const sensor_msgs::ImageConstPtr &msg)
       //ROS_WARN_STREAM("ord_last " << points_2d_ordered_last.size());
       //ROS_WARN_STREAM("unord " << points_2d_unordered.size());
       //ROS_WARN_STREAM("temp" << temp_points_2d_ordered.size());
+      
 
-
-      bool success = cv::solvePnP(points_3d, temp_points_2d_ordered, camera_intrinsics_matrix, cv::Mat(), rvec, tvec);
+      bool success = cv::solvePnP(points_3d, temp_points_2d_ordered, camera_intrinsics_matrix, cv::Mat(), rvec, tvec,false,cv::SOLVEPNP_EPNP);
 
       if (success)
       {
 
         // caluclate the error
-        float temp_repr_error = reprojection_mse(points_3d, temp_points_2d_ordered, rvec, tvec);
+        temp_repr_error = reprojection_mse(points_3d, temp_points_2d_ordered, rvec, tvec);
 
         // if error too high, do the brute forcing
 
-        if (temp_repr_error < 15)
+        if (temp_repr_error < 20)
         {
 
           tvec.copyTo(best_tvec);
@@ -209,13 +221,12 @@ void PoseEstimator::image_callback(const sensor_msgs::ImageConstPtr &msg)
         {
           points_2d_ordered.push_back(points_2d_unordered[permutation_id[i]]);
         }
-        //ROS_WARN_STREAM("test3");
-
-        bool success = cv::solvePnP(points_3d, points_2d_ordered, camera_intrinsics_matrix, cv::Mat(), rvec, tvec);
-
+    
+        bool success = cv::solvePnP(points_3d, points_2d_ordered, camera_intrinsics_matrix, cv::Mat(), rvec, tvec,false,cv::SOLVEPNP_EPNP);
+     
         if (success)
         {
-          float temp_repr_error = reprojection_mse(points_3d, points_2d_ordered, rvec, tvec);
+          temp_repr_error = reprojection_mse(points_3d, points_2d_ordered, rvec, tvec);
           // ROS_WARN_STREAM("repr err: " << temp_repr_error);
 
           // ROS_WARN_STREAM("min err: " << min_repr_error);
@@ -246,7 +257,9 @@ void PoseEstimator::image_callback(const sensor_msgs::ImageConstPtr &msg)
 
     // ROS_WARN_STREAM("points2d un size: " << points_2d_unordered.size());
 
-    // ROS_WARN_STREAM("new frame");
+    ROS_WARN_STREAM("points2d ord l size: " << points_2d_ordered_last.size());
+    ROS_WARN_STREAM("temp repr errro: " << temp_repr_error);
+    
 
     // ROS_WARN_STREAM("permutation_id size: " << permutation_id.size());
 
@@ -279,6 +292,12 @@ float PoseEstimator::reprojection_mse(std::vector<cv::Point3f> points_3d_defined
     mse_sum += l2_distance_squared;
   }
 
+  ROS_WARN_STREAM("ttest " << mse_sum);
+  if (mse_sum == 0){
+    mse_sum = std::numeric_limits<float>::max();
+  }
+
+
   return mse_sum / points_3d_defined.size();
 }
 
@@ -302,6 +321,8 @@ float PoseEstimator::reprojection_max_error(std::vector<cv::Point3f> points_3d_d
     float l2_distance = sqrt(pow(x_d - x_p, 2) + pow(y_d - y_p, 2));
     max_error = std::max(max_error, l2_distance);
   }
+
+  
 
   return max_error;
 }

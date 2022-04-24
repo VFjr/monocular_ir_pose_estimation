@@ -47,5 +47,11 @@ class PoseEstimator{
         float reprojection_max_error(std::vector<cv::Point3f> points_3d_defined, std::vector<cv::Point2f> points_2d_detected, cv::Mat rvec, cv::Mat tvec);
         void draw_axis(cv::Mat& img, cv::Mat rvec, cv::Mat tvec);
 
+        std::vector<cv::Point2f> match_points_order(std::vector<cv::Point2f> old_ordered_vector, std::vector<cv::Point2f> new_unordered_vector);
+        float l2_distance(cv::Point2f p1, cv::Point2f p2);
+
+        bool last_detection_successful;
+
+        std::vector<cv::Point2f> points_2d_ordered_last;
     
 };

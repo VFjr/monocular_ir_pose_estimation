@@ -20,7 +20,7 @@ PoseEstimator::PoseEstimator(ros::NodeHandle *nh) : it_(*nh)
 
   // Filter by Area.
   blob_detector_params.filterByArea = true;
-  blob_detector_params.minArea = 5;
+  blob_detector_params.minArea = 10;
 
   // Filter by Circularity
   blob_detector_params.filterByCircularity = false;
@@ -33,6 +33,9 @@ PoseEstimator::PoseEstimator(ros::NodeHandle *nh) : it_(*nh)
   // Filter by Inertia
   blob_detector_params.filterByInertia = false;
   blob_detector_params.minInertiaRatio = 0.01;
+
+  blob_detector_params.minDistBetweenBlobs = 15;
+  
 
   blob_detector = cv::SimpleBlobDetector::create(blob_detector_params);
 
@@ -129,7 +132,7 @@ void PoseEstimator::image_callback(const sensor_msgs::ImageConstPtr &msg)
 
   std::vector<cv::Point2f> points_2d_unordered, points_2d_ordered, points_2d_ordered_best, temp_points_2d_ordered;
 
-  if (keypoints.size() == 5)
+  if (keypoints.size() >= 5)
   {
 
     points_2d_unordered.clear();
@@ -161,7 +164,7 @@ void PoseEstimator::image_callback(const sensor_msgs::ImageConstPtr &msg)
 
         // if error too high, do the brute forcing
 
-        if (temp_repr_error < 10)
+        if (temp_repr_error < 15)
         {
 
           tvec.copyTo(best_tvec);
@@ -185,7 +188,16 @@ void PoseEstimator::image_callback(const sensor_msgs::ImageConstPtr &msg)
     if (!last_detection_successful)
     {
 
-      std::vector<int> permutation_id = {0, 1, 2, 3, 4};
+      //ROS_WARN_STREAM("test1");
+      std::vector<int> permutation_id;
+      
+      //make a permutation if vector of the size of unordered points
+
+      for (int i = 0; i < points_2d_unordered.size(); i++)
+      {
+        permutation_id.push_back(i);
+        //ROS_WARN_STREAM("test2");
+      }
 
       float min_repr_error = std::numeric_limits<float>::max();
 
@@ -193,10 +205,11 @@ void PoseEstimator::image_callback(const sensor_msgs::ImageConstPtr &msg)
       {
 
         points_2d_ordered.clear();
-        for (int i = 0; i < permutation_id.size(); i++)
+        for (int i = 0; i < points_3d.size(); i++)
         {
           points_2d_ordered.push_back(points_2d_unordered[permutation_id[i]]);
         }
+        //ROS_WARN_STREAM("test3");
 
         bool success = cv::solvePnP(points_3d, points_2d_ordered, camera_intrinsics_matrix, cv::Mat(), rvec, tvec);
 
@@ -215,6 +228,7 @@ void PoseEstimator::image_callback(const sensor_msgs::ImageConstPtr &msg)
             rvec.copyTo(best_rvec);
 
             points_2d_ordered_best = points_2d_ordered;
+            //ROS_WARN_STREAM("test4");
           }
         }
         else
@@ -225,6 +239,7 @@ void PoseEstimator::image_callback(const sensor_msgs::ImageConstPtr &msg)
       } while (std::next_permutation(permutation_id.begin(), permutation_id.end()));
 
       ROS_WARN_STREAM("min err: " << min_repr_error);
+      //ROS_WARN_STREAM("test5");
       last_detection_successful = true;
       points_2d_ordered_last = points_2d_ordered_best;
     }
